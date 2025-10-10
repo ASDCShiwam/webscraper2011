@@ -6,7 +6,7 @@
 <section class="card">
     <h2>Start a Crawl</h2>
     <p>Enter a starting URL and optional limits to keep the crawl focused on what matters.</p>
-    <form action="/start_scraping" method="POST" class="form-grid" data-loading>
+    <form action="{% url 'start_scraping' %}" method="POST" class="form-grid" data-loading-form>
         {% csrf_token %}
         <div class="form-group">
             <label for="url">Website URL</label>
@@ -20,7 +20,13 @@
             <label for="max_pdfs">Maximum PDFs (optional)</label>
             <input type="number" id="max_pdfs" name="max_pdfs" min="1" placeholder="e.g. 50">
         </div>
-        <button type="submit" class="primary">Start Scraping</button>
+        <div class="form-actions">
+            <button type="submit" class="primary" data-loading-button>Start Scraping</button>
+            <div class="loading-indicator" data-loading-indicator hidden>
+                <span class="spinner" aria-hidden="true"></span>
+                <span>Scraping in progress…</span>
+            </div>
+        </div>
     </form>
 
     {% if error %}
@@ -41,11 +47,11 @@
                 </div>
                 <div>
                     <dt>Pages limit</dt>
-                    <dd>{{ message.max_pages }}</dd>
+                    <dd>{{ message.max_pages|default:"—" }}</dd>
                 </div>
                 <div>
                     <dt>PDF limit</dt>
-                    <dd>{{ message.max_pdfs }}</dd>
+                    <dd>{{ message.max_pdfs|default:"—" }}</dd>
                 </div>
                 <div>
                     <dt>PDFs discovered</dt>
@@ -55,4 +61,50 @@
         </section>
     {% endif %}
 </section>
+
+{% if documents %}
+<section class="card">
+    <h2>Downloaded PDFs</h2>
+    <div class="table-wrapper">
+        <table class="documents-table">
+            <thead>
+                <tr>
+                    <th scope="col">File name</th>
+                    <th scope="col">Source page</th>
+                    <th scope="col">Method</th>
+                    <th scope="col">Size</th>
+                    <th scope="col">Downloaded</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for document in documents %}
+                <tr>
+                    <td data-label="File name">
+                        <strong>{{ document.filename }}</strong>
+                        <div class="muted">{{ document.path }}</div>
+                    </td>
+                    <td data-label="Source page">
+                        <a href="{{ document.source_page }}" target="_blank" rel="noopener">Visit page</a>
+                    </td>
+                    <td data-label="Method" class="text-capitalize">{{ document.method }}</td>
+                    <td data-label="Size">
+                        {% if document.size_kb %}
+                            {{ document.size_kb }} KB
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td data-label="Downloaded">{{ document.downloaded_display|default:document.downloaded_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% elif message %}
+<section class="card empty-state">
+    <h2>No PDFs saved yet</h2>
+    <p>Your crawl finished without downloading any PDF documents. Try broadening the crawl limits or starting from a different page.</p>
+</section>
+{% endif %}
 {% endblock %}
