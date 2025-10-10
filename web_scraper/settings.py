@@ -111,6 +111,9 @@ STATICFILES_DIRS = [
     BASE_DIR / 'static',  # You can place global static files here
 ]
 
+# Location where downloaded PDFs will be stored
+PDF_DOWNLOAD_ROOT = BASE_DIR / 'downloaded_pdfs'
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 

@@ -1,15 +1,14 @@
 import logging
-import os
 import re
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse, urlunparse
 
-# Import necessary libraries
-import requests
+from django.conf import settings
+from django.http import HttpResponseBadRequest, HttpRequest
 from django.shortcuts import render
-from django.http import HttpResponseBadRequest
 from typing import Optional  # Import Optional from typing
+
 from .crawler import crawl_and_download  # Import the crawl logic from the crawler.py file
 
 logger = logging.getLogger(__name__)
@@ -18,8 +17,10 @@ def _initial_context() -> dict:
     """Initialize the context for rendering."""
     return {"message": None, "documents": [], "error": None}
 
-def _store_context(context: dict) -> dict:
-    """Store the context in the app's config."""
+def _store_context(request: HttpRequest, context: dict) -> dict:
+    """Persist the latest crawl context in the user's session."""
+    request.session["LAST_CONTEXT"] = context
+    request.session.modified = True
     return context
 
 def _sanitize_path_segment(value: str) -> str:
@@ -93,7 +94,11 @@ def format_downloaded_documents(documents: list) -> list:
             }
         )
 
-    return formatted
+    return sorted(
+        formatted,
+        key=lambda item: item.get("downloaded_at") or "",
+        reverse=True,
+    )
 
 def index(request):
     """Handle the index page request."""
@@ -107,6 +112,7 @@ def start_scraping(request):
         website_url = request.POST.get('url', '').strip()
         if not website_url:
             context = _store_context(
+                request,
                 {
                     **_initial_context(),
                     "error": "A website URL is required.",
@@ -120,11 +126,13 @@ def start_scraping(request):
             max_pages = parse_limit(request.POST.get('max_pages', ''), "Maximum pages")
             max_pdfs = parse_limit(request.POST.get('max_pdfs', ''), "Maximum PDFs")
         except ValueError as exc:
-            context = _store_context({**_initial_context(), "error": str(exc)})
+            context = _store_context(request, {**_initial_context(), "error": str(exc)})
             return render(request, 'index.html', context, status=400)
 
         # Define download directory and start crawling
-        base_download_dir: Path = Path("./downloaded_pdfs")  # You can configure this in settings
+        base_download_dir: Path = Path(
+            getattr(settings, "PDF_DOWNLOAD_ROOT", settings.BASE_DIR / "downloaded_pdfs")
+        )
         download_folder = _derive_download_directory(base_download_dir, start_url)
         download_folder.mkdir(parents=True, exist_ok=True)
 
@@ -152,11 +160,12 @@ def start_scraping(request):
             "downloaded": len(downloaded_documents),
             "max_pages": max_pages,
             "max_pdfs": max_pdfs,
-            "download_directory": str(download_folder),
+            "download_directory": str(download_folder.resolve()),
         }
 
         # Store context for session and render
         context = _store_context(
+            request,
             {
                 "message": message,
                 "documents": documents,
