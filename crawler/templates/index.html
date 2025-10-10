@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}PDF Scraper - Crawl{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h2>Start a Crawl</h2>
+    <p>Enter a starting URL and optional limits to keep the crawl focused on what matters.</p>
+    <form action="/start_scraping" method="POST" class="form-grid" data-loading>
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="url">Website URL</label>
+            <input type="url" id="url" name="url" placeholder="https://example.com" required>
+        </div>
+        <div class="form-group">
+            <label for="max_pages">Maximum pages (optional)</label>
+            <input type="number" id="max_pages" name="max_pages" min="1" placeholder="e.g. 100">
+        </div>
+        <div class="form-group">
+            <label for="max_pdfs">Maximum PDFs (optional)</label>
+            <input type="number" id="max_pdfs" name="max_pdfs" min="1" placeholder="e.g. 50">
+        </div>
+        <button type="submit" class="primary">Start Scraping</button>
+    </form>
+
+    {% if error %}
+        <p class="alert alert-error">{{ error }}</p>
+    {% endif %}
+
+    {% if message %}
+        <section class="card">
+            <h2>Latest Crawl Summary</h2>
+            <dl class="summary-list">
+                <div>
+                    <dt>Website</dt>
+                    <dd>{{ message.website_url }}</dd>
+                </div>
+                <div>
+                    <dt>Download folder</dt>
+                    <dd><code>{{ message.download_directory }}</code></dd>
+                </div>
+                <div>
+                    <dt>Pages limit</dt>
+                    <dd>{{ message.max_pages }}</dd>
+                </div>
+                <div>
+                    <dt>PDF limit</dt>
+                    <dd>{{ message.max_pdfs }}</dd>
+                </div>
+                <div>
+                    <dt>PDFs discovered</dt>
+                    <dd>{{ message.downloaded }}</dd>
+                </div>
+            </dl>
+        </section>
+    {% endif %}
+</section>
+{% endblock %}

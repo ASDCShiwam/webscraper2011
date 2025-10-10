@@ -1,0 +1,39 @@
+{% load static %} 
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}PDF Scraper{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'crawler/styles.css' %}">
+    <script src="{% static 'crawler/script.js' %}" defer></script>
+</head>
+
+<body>
+    <header class="site-header">
+        <div class="container header-content">
+            <div class="logo">
+                <a href="/">PDF Scraper</a>
+            </div>
+            <nav>
+                <a href="/">Home</a>
+               
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        {% block content %}
+        <!-- Content will be injected here -->
+        {% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <p>&copy; 2025 PDF Scraper. All rights reserved.</p>
+        </div>
+    </footer>
+</body>
+
+</html>
