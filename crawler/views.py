@@ -1,16 +1,19 @@
+import hashlib
 import logging
-import os
 import re
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse, urlunparse
 
-# Import necessary libraries
-import requests
+from django.conf import settings
+from django.db import transaction
+from django.http import HttpResponseBadRequest, HttpRequest
 from django.shortcuts import render
-from django.http import HttpResponseBadRequest
-from typing import Optional  # Import Optional from typing
+from django.utils import timezone
+from typing import Optional, Tuple  # Import Optional from typing
+
 from .crawler import crawl_and_download  # Import the crawl logic from the crawler.py file
+from .models import CrawlRun, DownloadedDocument
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +21,10 @@ def _initial_context() -> dict:
     """Initialize the context for rendering."""
     return {"message": None, "documents": [], "error": None}
 
-def _store_context(context: dict) -> dict:
-    """Store the context in the app's config."""
+def _store_context(request: HttpRequest, context: dict) -> dict:
+    """Persist the latest crawl context in the user's session."""
+    request.session["LAST_CONTEXT"] = context
+    request.session.modified = True
     return context
 
 def _sanitize_path_segment(value: str) -> str:
@@ -93,7 +98,50 @@ def format_downloaded_documents(documents: list) -> list:
             }
         )
 
-    return formatted
+    return sorted(
+        formatted,
+        key=lambda item: item.get("downloaded_at") or "",
+        reverse=True,
+    )
+
+
+def _safe_int(value: Optional[object], default: int = 0) -> int:
+    """Safely cast a value to an integer."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _parse_iso_timestamp(raw_value: Optional[str]) -> Optional[datetime]:
+    """Convert ISO-formatted strings into timezone-aware datetimes."""
+    if not raw_value:
+        return None
+
+    normalized = raw_value.replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+
+    if timezone.is_naive(parsed):
+        parsed = timezone.make_aware(parsed, timezone.utc)
+
+    return parsed.astimezone(timezone.utc)
+
+
+def _collect_file_metadata(path: Path) -> Tuple[Optional[int], str]:
+    """Return the file size in bytes and SHA-256 hash for the given path."""
+    if not path.exists():
+        return None, ""
+
+    size = path.stat().st_size
+    sha256 = hashlib.sha256()
+    with path.open("rb") as file_obj:
+        for chunk in iter(lambda: file_obj.read(8192), b""):
+            sha256.update(chunk)
+
+    return size, sha256.hexdigest()
 
 def index(request):
     """Handle the index page request."""
@@ -107,6 +155,7 @@ def start_scraping(request):
         website_url = request.POST.get('url', '').strip()
         if not website_url:
             context = _store_context(
+                request,
                 {
                     **_initial_context(),
                     "error": "A website URL is required.",
@@ -120,11 +169,13 @@ def start_scraping(request):
             max_pages = parse_limit(request.POST.get('max_pages', ''), "Maximum pages")
             max_pdfs = parse_limit(request.POST.get('max_pdfs', ''), "Maximum PDFs")
         except ValueError as exc:
-            context = _store_context({**_initial_context(), "error": str(exc)})
+            context = _store_context(request, {**_initial_context(), "error": str(exc)})
             return render(request, 'index.html', context, status=400)
 
         # Define download directory and start crawling
-        base_download_dir: Path = Path("./downloaded_pdfs")  # You can configure this in settings
+        base_download_dir: Path = Path(
+            getattr(settings, "PDF_DOWNLOAD_ROOT", settings.BASE_DIR / "downloaded_pdfs")
+        )
         download_folder = _derive_download_directory(base_download_dir, start_url)
         download_folder.mkdir(parents=True, exist_ok=True)
 
@@ -135,7 +186,9 @@ def start_scraping(request):
             allowed_hosts.add(parsed_start.hostname)
 
         # Call the crawl_and_download function
-        downloaded_documents = crawl_and_download(
+        crawl_started_at = timezone.now()
+
+        downloaded_documents, crawl_metadata = crawl_and_download(
             start_url,
             download_folder,
             allowed_hosts=allowed_hosts,
@@ -143,20 +196,59 @@ def start_scraping(request):
             max_pdfs=max_pdfs
         )
 
+        crawl_completed_at = timezone.now()
+
         # Format the documents for rendering
         documents = format_downloaded_documents(downloaded_documents)
 
         # Create a message with the crawl summary
+        pages_crawled = _safe_int(crawl_metadata.get("pages_crawled"), 0)
+
         message = {
             "website_url": start_url,
             "downloaded": len(downloaded_documents),
             "max_pages": max_pages,
             "max_pdfs": max_pdfs,
-            "download_directory": str(download_folder),
+            "download_directory": str(download_folder.resolve()),
+            "pages_crawled": pages_crawled,
         }
+
+        # Persist crawl summary and document metadata to the database
+        started_at = _parse_iso_timestamp(crawl_metadata.get("started_at")) or crawl_started_at
+        completed_at = _parse_iso_timestamp(crawl_metadata.get("finished_at")) or crawl_completed_at
+
+        with transaction.atomic():
+            crawl_run = CrawlRun.objects.create(
+                start_url=start_url,
+                download_directory=str(download_folder.resolve()),
+                max_pages=max_pages,
+                max_pdfs=max_pdfs,
+                pages_crawled=pages_crawled,
+                pdfs_downloaded=len(downloaded_documents),
+                started_at=started_at,
+                completed_at=completed_at,
+            )
+
+            for document in downloaded_documents:
+                raw_path = document.get("path")
+                path_value = Path(raw_path) if raw_path else None
+                size_bytes, sha256 = _collect_file_metadata(path_value) if path_value else (None, "")
+
+                DownloadedDocument.objects.create(
+                    run=crawl_run,
+                    pdf_url=document.get("url", ""),
+                    source_page=document.get("source_page", ""),
+                    filename=document.get("filename") or (path_value.name if path_value else "document.pdf"),
+                    stored_path=str(path_value) if path_value else "",
+                    file_size_bytes=size_bytes,
+                    downloaded_at=_parse_iso_timestamp(document.get("downloaded_at")) or completed_at,
+                    download_method=document.get("method", ""),
+                    sha256=sha256,
+                )
 
         # Store context for session and render
         context = _store_context(
+            request,
             {
                 "message": message,
                 "documents": documents,

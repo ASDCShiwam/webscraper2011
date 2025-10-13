@@ -6,7 +6,7 @@ import time
 from collections import deque
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, Iterator, List, Optional, Set
+from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple
 from urllib.parse import ParseResult, urljoin, urldefrag, urlparse, quote, unquote, parse_qs
 
 import bs4
@@ -51,7 +51,7 @@ def crawl_and_download(
     allowed_hosts: Optional[Iterable[str]] = None,
     max_pages: Optional[int] = None,
     max_pdfs: Optional[int] = None,
-) -> List[Dict[str, str]]:
+) -> Tuple[List[Dict[str, str]], Dict[str, str]]:
     """
     Crawl website and download PDFs.
     
@@ -68,6 +68,7 @@ def crawl_and_download(
     downloaded: List[Dict[str, str]] = []
     downloaded_urls: Set[str] = set()
     allowed: Optional[Set[str]] = None
+    started_at = datetime.utcnow()
     
     if allowed_hosts:
         allowed = set()
@@ -85,7 +86,9 @@ def crawl_and_download(
     print(f"   Output: {download_folder}")
     print(f"{'='*80}\n")
     
-    while queue:
+    max_pdf_limit_hit = False
+
+    while queue and not max_pdf_limit_hit:
         if max_pages is not None and pages_crawled >= max_pages:
             logger.info("Reached maximum page limit of %s", max_pages)
             break
@@ -128,9 +131,9 @@ def crawl_and_download(
         for pdf_path in onclick_pdfs:
             if pdf_path in downloaded_urls:
                 continue
-            
+
             pdf_info = download_onclick_watermark(pdf_path, download_folder, current_url)
-            
+
             if pdf_info:
                 pdf_info["source_page"] = current_url
                 pdf_info["method"] = "onclick"
@@ -139,8 +142,12 @@ def crawl_and_download(
 
                 if max_pdfs is not None and len(downloaded) >= max_pdfs:
                     logger.info("Reached maximum PDF limit of %s", max_pdfs)
-                    return downloaded
-        
+                    max_pdf_limit_hit = True
+                    break
+
+        if max_pdf_limit_hit:
+            break
+
         # Download watermark hrefs (Method 2)
         for watermark_url in watermark_hrefs:
             if watermark_url in downloaded_urls:
@@ -156,8 +163,12 @@ def crawl_and_download(
 
                 if max_pdfs is not None and len(downloaded) >= max_pdfs:
                     logger.info("Reached maximum PDF limit of %s", max_pdfs)
-                    return downloaded
-        
+                    max_pdf_limit_hit = True
+                    break
+
+        if max_pdf_limit_hit:
+            break
+
         # Download regular PDFs (Method 3)
         for pdf_url in regular_pdfs:
             parsed_pdf = urlparse(pdf_url)
@@ -176,47 +187,52 @@ def crawl_and_download(
 
                 if max_pdfs is not None and len(downloaded) >= max_pdfs:
                     logger.info("Reached maximum PDF limit of %s", max_pdfs)
-                    return downloaded
+                    max_pdf_limit_hit = True
+                    break
+
+        if max_pdf_limit_hit:
+            break
 
         # Queue new links for crawling
-        links_found = 0
-        for link in soup.select("a[href]"):
-            href = link.get("href")
-            if not href:
-                continue
+        if not max_pdf_limit_hit:
+            links_found = 0
+            for link in soup.select("a[href]"):
+                href = link.get("href")
+                if not href:
+                    continue
 
-            href, _ = urldefrag(href)
-            if not href or href == "#":
-                continue
-            
-            full_url = urljoin(current_url, href)
-            parsed = urlparse(full_url)
+                href, _ = urldefrag(href)
+                if not href or href == "#":
+                    continue
 
-            if parsed.scheme not in {"http", "https"}:
-                continue
+                full_url = urljoin(current_url, href)
+                parsed = urlparse(full_url)
 
-            if allowed and not _is_allowed_host(parsed, allowed):
-                continue
+                if parsed.scheme not in {"http", "https"}:
+                    continue
 
-            # Skip direct PDF links (handled separately)
-            if parsed.path.lower().endswith(".pdf"):
-                continue
-            
-            # Skip watermark download URLs (handled separately)
-            if 'watermark' in parsed.path.lower() and 'download.php' in parsed.path.lower():
-                continue
-            
-            # Skip non-content files
-            skip_ext = {'.jpg', '.jpeg', '.png', '.gif', '.css', '.js', '.ico', '.svg', '.woff', '.ttf', '.mp4', '.mp3'}
-            if any(parsed.path.lower().endswith(ext) for ext in skip_ext):
-                continue
+                if allowed and not _is_allowed_host(parsed, allowed):
+                    continue
 
-            if full_url not in visited and full_url not in queue:
-                queue.append(full_url)
-                links_found += 1
-        
-        if links_found > 0:
-            print(f"   🔗 Queued {links_found} new links (Total in queue: {len(queue)})")
+                # Skip direct PDF links (handled separately)
+                if parsed.path.lower().endswith(".pdf"):
+                    continue
+
+                # Skip watermark download URLs (handled separately)
+                if 'watermark' in parsed.path.lower() and 'download.php' in parsed.path.lower():
+                    continue
+
+                # Skip non-content files
+                skip_ext = {'.jpg', '.jpeg', '.png', '.gif', '.css', '.js', '.ico', '.svg', '.woff', '.ttf', '.mp4', '.mp3'}
+                if any(parsed.path.lower().endswith(ext) for ext in skip_ext):
+                    continue
+
+                if full_url not in visited and full_url not in queue:
+                    queue.append(full_url)
+                    links_found += 1
+
+            if links_found > 0:
+                print(f"   🔗 Queued {links_found} new links (Total in queue: {len(queue)})")
 
     print(f"\n{'='*80}")
     print(f"✅ Crawling Complete!")
@@ -224,8 +240,16 @@ def crawl_and_download(
     print(f"   PDFs downloaded: {len(downloaded)}")
     print(f"   Saved to: {download_folder}")
     print(f"{'='*80}\n")
-    
-    return downloaded
+
+    finished_at = datetime.utcnow()
+
+    metadata: Dict[str, str] = {
+        "pages_crawled": str(pages_crawled),
+        "started_at": started_at.isoformat() + "Z",
+        "finished_at": finished_at.isoformat() + "Z",
+    }
+
+    return downloaded, metadata
 
 
 def _extract_onclick_pdfs(soup: BeautifulSoup, base_url: str) -> List[str]:

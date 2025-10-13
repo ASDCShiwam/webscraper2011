@@ -67,7 +67,7 @@ h2 {
 
 form {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 20px;
 }
 
@@ -100,6 +100,119 @@ form button {
 
 form button:hover {
     background-color: #0056b3;
+}
+
+.form-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.loading-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #444;
+    font-size: 0.95rem;
+}
+
+.loading-indicator[hidden] {
+    display: none;
+}
+
+.spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    border-top-color: #007bff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.summary-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px 24px;
+}
+
+.summary-list div {
+    background-color: #f8f9fb;
+    padding: 12px;
+    border-radius: 6px;
+}
+
+.summary-list dt {
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 4px;
+}
+
+.summary-list dd {
+    margin: 0;
+    word-break: break-word;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+}
+
+.documents-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 600px;
+}
+
+.documents-table th,
+.documents-table td {
+    border-bottom: 1px solid #e4e6eb;
+    padding: 12px 16px;
+    text-align: left;
+}
+
+.documents-table tbody tr:hover {
+    background-color: #f6f8fc;
+}
+
+.documents-table th {
+    background-color: #f1f3f7;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.documents-table td a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.documents-table td a:hover {
+    text-decoration: underline;
+}
+
+.muted {
+    color: #6c757d;
+    font-size: 0.85rem;
+    margin-top: 4px;
+    word-break: break-word;
+}
+
+.text-capitalize {
+    text-transform: capitalize;
+}
+
+.empty-state {
+    text-align: center;
+}
+
+.empty-state p {
+    margin-top: 8px;
 }
 
 /* Alerts */
@@ -135,5 +248,33 @@ form button:hover {
 @media (max-width: 768px) {
     form {
         grid-template-columns: 1fr;
+    }
+
+    .documents-table {
+        min-width: 100%;
+    }
+
+    .documents-table thead {
+        display: none;
+    }
+
+    .documents-table tr {
+        display: grid;
+        grid-template-columns: 1fr;
+        padding: 12px 0;
+        border-bottom: 1px solid #e4e6eb;
+    }
+
+    .documents-table td {
+        border: none;
+        padding: 6px 0;
+    }
+
+    .documents-table td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        margin-right: 8px;
+        display: block;
+        color: #555;
     }
 }

@@ -1,7 +1,14 @@
+import os
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from a local .env file if present so developers can
+# configure database credentials without committing secrets.
+load_dotenv(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
@@ -62,11 +69,29 @@ WSGI_APPLICATION = 'web_scraper.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
+default_db_engine = os.getenv('DB_ENGINE', 'django.db.backends.sqlite3')
+
+if default_db_engine == 'django.db.backends.sqlite3':
+    default_db_config = {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
+else:
+    default_db_config = {
+        'ENGINE': default_db_engine,
+        'NAME': os.getenv('DB_NAME', ''),
+        'USER': os.getenv('DB_USER', ''),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
+        'CONN_MAX_AGE': int(os.getenv('DB_CONN_MAX_AGE', '60')),
+        'OPTIONS': {
+            'sslmode': os.getenv('DB_SSLMODE', 'prefer'),
+        },
+    }
+
+DATABASES = {
+    'default': default_db_config,
 }
 
 
@@ -110,6 +135,9 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     BASE_DIR / 'static',  # You can place global static files here
 ]
+
+# Location where downloaded PDFs will be stored
+PDF_DOWNLOAD_ROOT = BASE_DIR / 'downloaded_pdfs'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
