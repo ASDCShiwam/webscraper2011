@@ -3,3 +3,4 @@ requests>=2.25,<3.0
 beautifulsoup4>=4.9,<5.0
 lxml>=4.6,<5.0
 python-dotenv>=0.19,<1.0  # For managing environment variables
+psycopg2-binary>=2.9,<3.0  # PostgreSQL driver for local development
