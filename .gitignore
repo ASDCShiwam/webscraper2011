@@ -49,6 +49,7 @@ Thumbs.db
 # Django migrations
 **/migrations/*
 !**/migrations/__init__.py
+!crawler/migrations/*.py
 
 # Static files directory for Django (if it exists in the project)
 staticfiles/
