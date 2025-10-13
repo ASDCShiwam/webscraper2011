@@ -6,7 +6,7 @@ import time
 from collections import deque
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, Iterator, List, Optional, Set
+from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple
 from urllib.parse import ParseResult, urljoin, urldefrag, urlparse, quote, unquote, parse_qs
 
 import bs4
@@ -51,7 +51,7 @@ def crawl_and_download(
     allowed_hosts: Optional[Iterable[str]] = None,
     max_pages: Optional[int] = None,
     max_pdfs: Optional[int] = None,
-) -> List[Dict[str, str]]:
+) -> Tuple[List[Dict[str, str]], Dict[str, str]]:
     """
     Crawl website and download PDFs.
     
@@ -68,6 +68,7 @@ def crawl_and_download(
     downloaded: List[Dict[str, str]] = []
     downloaded_urls: Set[str] = set()
     allowed: Optional[Set[str]] = None
+    started_at = datetime.utcnow()
     
     if allowed_hosts:
         allowed = set()
@@ -224,8 +225,16 @@ def crawl_and_download(
     print(f"   PDFs downloaded: {len(downloaded)}")
     print(f"   Saved to: {download_folder}")
     print(f"{'='*80}\n")
-    
-    return downloaded
+
+    finished_at = datetime.utcnow()
+
+    metadata: Dict[str, str] = {
+        "pages_crawled": str(pages_crawled),
+        "started_at": started_at.isoformat() + "Z",
+        "finished_at": finished_at.isoformat() + "Z",
+    }
+
+    return downloaded, metadata
 
 
 def _extract_onclick_pdfs(soup: BeautifulSoup, base_url: str) -> List[str]:
