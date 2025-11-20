@@ -106,8 +106,8 @@ function initMatrixRain() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    const chars = '01アイウエオカキクケコサシスセソΔΞλΣ#//<>';
-    const fontSize = 15;
+    const chars = '0101<>[]{}#%?=+*//::;';
+    const fontSize = 16;
     const columns = canvas.width / fontSize;
     const drops = Array(Math.floor(columns)).fill(1);
 
@@ -116,15 +116,15 @@ function initMatrixRain() {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         ctx.fillStyle = '#00ff6a';
-        ctx.shadowColor = 'rgba(0, 255, 65, 0.6)';
-        ctx.shadowBlur = 12;
+        ctx.shadowColor = 'rgba(0, 255, 65, 0.7)';
+        ctx.shadowBlur = 14;
         ctx.font = `${fontSize}px monospace`;
 
         for (let i = 0; i < drops.length; i++) {
             const text = chars[Math.floor(Math.random() * chars.length)];
             ctx.fillText(text, i * fontSize, drops[i] * fontSize);
 
-            if (drops[i] * fontSize > canvas.height && Math.random() > 0.96) {
+            if (drops[i] * fontSize > canvas.height && Math.random() > 0.94) {
                 drops[i] = 0;
             }
             drops[i]++;
@@ -146,25 +146,25 @@ function initCodeStream() {
     stream.className = 'code-stream';
     document.body.appendChild(stream);
 
-    const glyphs = ['0', '1', '{', '}', '/', '<', '>', '*', '#', '%', 'λ', 'Σ'];
+    const glyphs = ['0', '1', '{', '}', '/', '<', '>', '*', '#', '%', '=', '+'];
     let columns = [];
 
     const makeLine = () => {
-        const length = Math.floor(14 + Math.random() * 16);
+        const length = Math.floor(18 + Math.random() * 18);
         return Array.from({ length }, () => glyphs[Math.floor(Math.random() * glyphs.length)]).join(' ');
     };
 
     const renderColumns = () => {
         stream.innerHTML = '';
         columns = [];
-        const count = Math.min(28, Math.max(12, Math.floor(window.innerWidth / 90)));
+        const count = Math.min(32, Math.max(14, Math.floor(window.innerWidth / 85)));
 
         for (let i = 0; i < count; i++) {
             const col = document.createElement('div');
             col.className = 'code-column';
             col.style.left = `${(i / count) * 100}%`;
-            col.style.animationDuration = `${7 + Math.random() * 6}s`;
-            col.style.animationDelay = `${Math.random() * 3.5}s`;
+            col.style.animationDuration = `${6 + Math.random() * 7}s`;
+            col.style.animationDelay = `${Math.random() * 4}s`;
             col.textContent = makeLine();
             stream.appendChild(col);
             columns.push(col);
