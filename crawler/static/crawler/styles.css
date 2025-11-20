@@ -271,6 +271,22 @@ main {
     min-height: calc(100vh - 200px);
 }
 
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.dashboard-grid .card {
+    margin-bottom: 0;
+    height: 100%;
+}
+
+.card-wide {
+    grid-column: span 2;
+}
+
 /* Cards */
 .card {
     background: var(--card-bg);
@@ -329,6 +345,70 @@ main {
     content: ']';
     margin-left: 0.5rem;
     color: var(--primary-green);
+}
+
+.card-status-panel .status-chip-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.status-chip {
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+.status-chip.status-idle {
+    color: var(--text-muted);
+    border-color: var(--border-color);
+}
+
+.status-chip.status-completed {
+    color: var(--primary-green);
+    border-color: var(--primary-green);
+    box-shadow: 0 0 12px rgba(0, 255, 65, 0.18);
+}
+
+.status-chip.status-error {
+    color: var(--danger);
+    border-color: var(--danger);
+    box-shadow: 0 0 12px rgba(255, 0, 85, 0.18);
+}
+
+.status-updated {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.status-details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.status-detail {
+    background: var(--darker-bg);
+    border: 1px solid var(--border-color);
+    padding: 0.9rem 1rem;
+    border-radius: 6px;
+    box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.05);
+}
+
+.status-detail dt {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+}
+
+.status-detail dd {
+    color: var(--text-primary);
+    font-weight: bold;
 }
 
 /* Form styles */
@@ -494,7 +574,10 @@ button:disabled {
 /* Table */
 .table-wrapper {
     overflow-x: auto;
+    overflow-y: auto;
     margin-top: 1rem;
+    max-height: 380px;
+    padding-right: 8px;
 }
 
 .documents-table {
@@ -619,6 +702,20 @@ button:disabled {
     .documents-table th,
     .documents-table td {
         padding: 0.5rem;
+    }
+}
+
+@media (max-width: 1100px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .card-wide {
+        grid-column: span 1;
+    }
+
+    .status-details {
+        grid-template-columns: 1fr;
     }
 }
 
