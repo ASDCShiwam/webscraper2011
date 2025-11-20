@@ -6,7 +6,7 @@ import time
 from collections import deque
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple
+from typing import Callable, Dict, Iterable, Iterator, List, Optional, Set, Tuple
 from urllib.parse import ParseResult, urljoin, urldefrag, urlparse, quote, unquote, parse_qs
 
 import bs4
@@ -51,6 +51,7 @@ def crawl_and_download(
     allowed_hosts: Optional[Iterable[str]] = None,
     max_pages: Optional[int] = None,
     max_pdfs: Optional[int] = None,
+    status_callback: Optional[Callable[[Dict[str, object]], None]] = None,
 ) -> Tuple[List[Dict[str, str]], Dict[str, str]]:
     """
     Crawl website and download PDFs.
@@ -85,6 +86,35 @@ def crawl_and_download(
     print(f"   Target: {start_url}")
     print(f"   Output: {download_folder}")
     print(f"{'='*80}\n")
+
+    def emit_status(
+        state: str,
+        message: str,
+        *,
+        pages: Optional[int] = None,
+        downloaded_count: Optional[int] = None,
+        current_url: Optional[str] = None,
+    ) -> None:
+        if not status_callback:
+            return
+
+        payload = {
+            "state": state,
+            "website": start_url,
+            "pages_crawled": pages if pages is not None else pages_crawled,
+            "downloaded": downloaded_count if downloaded_count is not None else len(downloaded),
+            "message": message,
+        }
+
+        if current_url:
+            payload["current_url"] = current_url
+
+        try:
+            status_callback(payload)
+        except Exception:
+            logger.exception("Status callback failed")
+
+    emit_status("Running", "Crawling started", pages=0, downloaded_count=0)
     
     max_pdf_limit_hit = False
 
@@ -99,8 +129,13 @@ def crawl_and_download(
         
         visited.add(current_url)
         pages_crawled += 1
-        
+
         print(f"\n[Page {pages_crawled}] 🔍 Crawling: {current_url}")
+        emit_status(
+            "Running",
+            f"Crawling page {pages_crawled}: {current_url}",
+            current_url=current_url,
+        )
 
         response = _request_with_retries(current_url, retries=retries, delay=delay)
         if response is None:
@@ -126,6 +161,11 @@ def crawl_and_download(
         
         total_found = len(onclick_pdfs) + len(watermark_hrefs) + len(regular_pdfs)
         print(f"   📄 Found {total_found} PDFs ({len(onclick_pdfs)} onclick, {len(watermark_hrefs)} watermark, {len(regular_pdfs)} direct)")
+        emit_status(
+            "Running",
+            f"Found {total_found} PDFs on page {pages_crawled}",
+            current_url=current_url,
+        )
         
         # Download onclick PDFs (Method 1)
         for pdf_path in onclick_pdfs:
@@ -139,6 +179,11 @@ def crawl_and_download(
                 pdf_info["method"] = "onclick"
                 downloaded.append(pdf_info)
                 downloaded_urls.add(pdf_path)
+
+                emit_status(
+                    "Running",
+                    f"Downloaded onclick PDF: {pdf_info.get('filename', pdf_path)}",
+                )
 
                 if max_pdfs is not None and len(downloaded) >= max_pdfs:
                     logger.info("Reached maximum PDF limit of %s", max_pdfs)
@@ -154,12 +199,17 @@ def crawl_and_download(
                 continue
             
             pdf_info = download_watermark_href(watermark_url, download_folder, current_url)
-            
+
             if pdf_info:
                 pdf_info["source_page"] = current_url
                 pdf_info["method"] = "watermark_href"
                 downloaded.append(pdf_info)
                 downloaded_urls.add(watermark_url)
+
+                emit_status(
+                    "Running",
+                    f"Downloaded watermark PDF: {pdf_info.get('filename', watermark_url)}",
+                )
 
                 if max_pdfs is not None and len(downloaded) >= max_pdfs:
                     logger.info("Reached maximum PDF limit of %s", max_pdfs)
@@ -184,6 +234,11 @@ def crawl_and_download(
                 pdf_info["method"] = "direct"
                 downloaded.append(pdf_info)
                 downloaded_urls.add(pdf_url)
+
+                emit_status(
+                    "Running",
+                    f"Downloaded direct PDF: {pdf_info.get('filename', pdf_url)}",
+                )
 
                 if max_pdfs is not None and len(downloaded) >= max_pdfs:
                     logger.info("Reached maximum PDF limit of %s", max_pdfs)
@@ -233,6 +288,11 @@ def crawl_and_download(
 
             if links_found > 0:
                 print(f"   🔗 Queued {links_found} new links (Total in queue: {len(queue)})")
+                emit_status(
+                    "Running",
+                    f"Queued {links_found} new links",
+                    current_url=current_url,
+                )
 
     print(f"\n{'='*80}")
     print(f"✅ Crawling Complete!")
@@ -240,6 +300,13 @@ def crawl_and_download(
     print(f"   PDFs downloaded: {len(downloaded)}")
     print(f"   Saved to: {download_folder}")
     print(f"{'='*80}\n")
+
+    emit_status(
+        "Completed",
+        "Crawl finished successfully.",
+        pages=pages_crawled,
+        downloaded_count=len(downloaded),
+    )
 
     finished_at = datetime.utcnow()
 
