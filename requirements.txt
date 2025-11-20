@@ -1,6 +1,10 @@
-Django>=3.2,<4.0
-requests>=2.25,<3.0
-beautifulsoup4>=4.9,<5.0
-lxml>=4.6,<5.0
-python-dotenv>=0.19,<1.0  # For managing environment variables
-psycopg2-binary>=2.9,<3.0  # PostgreSQL driver for local development
+Django==5.2.6
+requests==2.32.3
+beautifulsoup4==4.12.3
+lxml==5.3.0
+python-dotenv==1.1.1
+psycopg2-binary==2.9.11
+wfastcgi==2.2.1
+
+#pip install --no-index --find-links=wheels -r requirements.txt
+

@@ -113,8 +113,13 @@ def _safe_int(value: Optional[object], default: int = 0) -> int:
         return default
 
 
+from datetime import datetime, timezone
+from typing import Optional
+
+from datetime import datetime, timezone as dt_timezone
+from django.utils import timezone  # Django's module
+
 def _parse_iso_timestamp(raw_value: Optional[str]) -> Optional[datetime]:
-    """Convert ISO-formatted strings into timezone-aware datetimes."""
     if not raw_value:
         return None
 
@@ -125,9 +130,11 @@ def _parse_iso_timestamp(raw_value: Optional[str]) -> Optional[datetime]:
         return None
 
     if timezone.is_naive(parsed):
-        parsed = timezone.make_aware(parsed, timezone.utc)
+        parsed = timezone.make_aware(parsed, dt_timezone.utc)
 
-    return parsed.astimezone(timezone.utc)
+    return parsed.astimezone(dt_timezone.utc)
+
+
 
 
 def _collect_file_metadata(path: Path) -> Tuple[Optional[int], str]:

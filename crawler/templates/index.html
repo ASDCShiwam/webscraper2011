@@ -3,102 +3,207 @@
 {% block title %}PDF Scraper - Crawl{% endblock %}
 
 {% block content %}
-<section class="card">
+<!-- Status bar -->
+<div class="status-bar" data-status-bar>
+    <div class="status-item">
+        <span class="status-label">STATUS:</span>
+        <span class="status-value" data-system-status>ONLINE</span>
+    </div>
+    <div class="status-item">
+        <span class="status-label">MODE:</span>
+        <span class="status-value">SCRAPER</span>
+    </div>
+    <div class="status-item">
+        <span class="status-label">TIME:</span>
+        <span class="status-value" data-clock></span>
+    </div>
+</div>
+
+<section class="card card-primary">
     <h2>Start a Crawl</h2>
-    <p>Enter a starting URL and optional limits to keep the crawl focused on what matters.</p>
+    <p class="card-description">
+        <span class="terminal-prefix">$</span> Enter a starting URL and optional limits to keep the crawl focused on what matters.
+    </p>
+    
     <form action="{% url 'start_scraping' %}" method="POST" class="form-grid" data-loading-form>
         {% csrf_token %}
-        <div class="form-group">
-            <label for="url">Website URL</label>
-            <input type="url" id="url" name="url" placeholder="https://example.com" required>
+        
+        <div class="form-group" data-form-group>
+            <label for="url">
+                <span class="label-icon">▶</span> Website URL
+            </label>
+            <div class="input-wrapper">
+                <input type="url" id="url" name="url" placeholder="https://example.com" required>
+                <div class="input-border-effect"></div>
+            </div>
         </div>
-        <div class="form-group">
-            <label for="max_pages">Maximum pages (optional)</label>
-            <input type="number" id="max_pages" name="max_pages" min="1" placeholder="e.g. 100">
+        
+        <div class="form-group" data-form-group>
+            <label for="max_pages">
+                <span class="label-icon">▶</span> Maximum pages (optional)
+            </label>
+            <div class="input-wrapper">
+                <input type="number" id="max_pages" name="max_pages" min="1" placeholder="e.g. 100">
+                <div class="input-border-effect"></div>
+            </div>
         </div>
-        <div class="form-group">
-            <label for="max_pdfs">Maximum PDFs (optional)</label>
-            <input type="number" id="max_pdfs" name="max_pdfs" min="1" placeholder="e.g. 50">
+        
+        <div class="form-group" data-form-group>
+            <label for="max_pdfs">
+                <span class="label-icon">▶</span> Maximum PDFs (optional)
+            </label>
+            <div class="input-wrapper">
+                <input type="number" id="max_pdfs" name="max_pdfs" min="1" placeholder="e.g. 50">
+                <div class="input-border-effect"></div>
+            </div>
         </div>
+        
         <div class="form-actions">
-            <button type="submit" class="primary" data-loading-button>Start Scraping</button>
+            <button type="submit" class="primary btn-glow" data-loading-button>
+                <span class="btn-text">Start Scraping</span>
+                <span class="btn-icon">→</span>
+            </button>
             <div class="loading-indicator" data-loading-indicator hidden>
                 <span class="spinner" aria-hidden="true"></span>
-                <span>Scraping in progress…</span>
+                <span class="loading-text">Scraping in progress…</span>
+                <div class="progress-dots">
+                    <span>.</span><span>.</span><span>.</span>
+                </div>
             </div>
         </div>
     </form>
 
     {% if error %}
-        <p class="alert alert-error">{{ error }}</p>
-    {% endif %}
-
-    {% if message %}
-        <section class="card">
-            <h2>Latest Crawl Summary</h2>
-            <dl class="summary-list">
-                <div>
-                    <dt>Website</dt>
-                    <dd>{{ message.website_url }}</dd>
-                </div>
-                <div>
-                    <dt>Download folder</dt>
-                    <dd><code>{{ message.download_directory }}</code></dd>
-                </div>
-                <div>
-                    <dt>Pages limit</dt>
-                    <dd>{{ message.max_pages|default:"—" }}</dd>
-                </div>
-                <div>
-                    <dt>PDF limit</dt>
-                    <dd>{{ message.max_pdfs|default:"—" }}</dd>
-                </div>
-                <div>
-                    <dt>PDFs discovered</dt>
-                    <dd>{{ message.downloaded }}</dd>
-                </div>
-                <div>
-                    <dt>Pages crawled</dt>
-                    <dd>{{ message.pages_crawled }}</dd>
-                </div>
-            </dl>
-        </section>
+        <div class="alert alert-error" data-alert>
+            <span class="alert-icon">⚠</span>
+            <span class="alert-text">{{ error }}</span>
+        </div>
     {% endif %}
 </section>
 
+{% if message %}
+<section class="card card-results">
+    <h2>Latest Crawl Summary</h2>
+    <div class="results-header">
+        <span class="results-badge">COMPLETED</span>
+        <span class="results-timestamp" data-timestamp></span>
+    </div>
+    
+    <dl class="summary-list">
+        <div class="summary-item" data-summary-item>
+            <dt>
+                <span class="dt-icon">◆</span> Website
+            </dt>
+            <dd>
+                <a href="{{ message.website_url }}" target="_blank" rel="noopener" class="summary-link">
+                    {{ message.website_url }}
+                </a>
+            </dd>
+        </div>
+        <div class="summary-item" data-summary-item>
+            <dt>
+                <span class="dt-icon">◆</span> Download folder
+            </dt>
+            <dd>
+                <code class="code-block">{{ message.download_directory }}</code>
+            </dd>
+        </div>
+        <div class="summary-item" data-summary-item>
+            <dt>
+                <span class="dt-icon">◆</span> Pages limit
+            </dt>
+            <dd>
+                <span class="value-highlight">{{ message.max_pages|default:"∞" }}</span>
+            </dd>
+        </div>
+        <div class="summary-item" data-summary-item>
+            <dt>
+                <span class="dt-icon">◆</span> PDF limit
+            </dt>
+            <dd>
+                <span class="value-highlight">{{ message.max_pdfs|default:"∞" }}</span>
+            </dd>
+        </div>
+        <div class="summary-item summary-item-highlight" data-summary-item>
+            <dt>
+                <span class="dt-icon">◆</span> PDFs discovered
+            </dt>
+            <dd>
+                <span class="value-success">{{ message.downloaded }}</span>
+            </dd>
+        </div>
+        <div class="summary-item summary-item-highlight" data-summary-item>
+            <dt>
+                <span class="dt-icon">◆</span> Pages crawled
+            </dt>
+            <dd>
+                <span class="value-success">{{ message.pages_crawled }}</span>
+            </dd>
+        </div>
+    </dl>
+</section>
+{% endif %}
+
 {% if documents %}
-<section class="card">
-    <h2>Downloaded PDFs</h2>
+<section class="card card-table">
+    <div class="card-header-flex">
+        <h2>Downloaded PDFs</h2>
+        <div class="table-stats">
+            <span class="stat-item">
+                <span class="stat-label">TOTAL:</span>
+                <span class="stat-value">{{ documents|length }}</span>
+            </span>
+        </div>
+    </div>
+    
     <div class="table-wrapper">
         <table class="documents-table">
             <thead>
                 <tr>
-                    <th scope="col">File name</th>
-                    <th scope="col">Source page</th>
-                    <th scope="col">Method</th>
-                    <th scope="col">Size</th>
-                    <th scope="col">Downloaded</th>
+                    <th scope="col">
+                        <span class="th-icon">▼</span> File name
+                    </th>
+                    <th scope="col">
+                        <span class="th-icon">▼</span> Source page
+                    </th>
+                    <th scope="col">
+                        <span class="th-icon">▼</span> Method
+                    </th>
+                    <th scope="col">
+                        <span class="th-icon">▼</span> Size
+                    </th>
+                    <th scope="col">
+                        <span class="th-icon">▼</span> Downloaded
+                    </th>
                 </tr>
             </thead>
             <tbody>
                 {% for document in documents %}
-                <tr>
+                <tr data-table-row>
                     <td data-label="File name">
-                        <strong>{{ document.filename }}</strong>
-                        <div class="muted">{{ document.path }}</div>
+                        <div class="file-info">
+                            <strong class="filename">{{ document.filename }}</strong>
+                            <div class="filepath muted">{{ document.path }}</div>
+                        </div>
                     </td>
                     <td data-label="Source page">
-                        <a href="{{ document.source_page }}" target="_blank" rel="noopener">Visit page</a>
+                        <a href="{{ document.source_page }}" target="_blank" rel="noopener" class="link-external">
+                            Visit page <span class="link-icon">↗</span>
+                        </a>
                     </td>
-                    <td data-label="Method" class="text-capitalize">{{ document.method }}</td>
+                    <td data-label="Method" class="text-capitalize">
+                        <span class="method-badge">{{ document.method }}</span>
+                    </td>
                     <td data-label="Size">
                         {% if document.size_kb %}
-                            {{ document.size_kb }} KB
+                            <span class="size-value">{{ document.size_kb }} KB</span>
                         {% else %}
-                            —
+                            <span class="value-empty">—</span>
                         {% endif %}
                     </td>
-                    <td data-label="Downloaded">{{ document.downloaded_display|default:document.downloaded_at }}</td>
+                    <td data-label="Downloaded">
+                        <span class="date-value">{{ document.downloaded_display|default:document.downloaded_at }}</span>
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -107,8 +212,223 @@
 </section>
 {% elif message %}
 <section class="card empty-state">
+    <div class="empty-icon">📄</div>
     <h2>No PDFs saved yet</h2>
     <p>Your crawl finished without downloading any PDF documents. Try broadening the crawl limits or starting from a different page.</p>
+    <div class="empty-suggestions">
+        <span class="suggestion">→ Increase max pages</span>
+        <span class="suggestion">→ Try a different URL</span>
+        <span class="suggestion">→ Check site structure</span>
+    </div>
 </section>
 {% endif %}
+
+<style>
+/* Additional inline styles for enhanced elements */
+.status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--darker-bg);
+    border: 1px solid var(--primary-green);
+    padding: 0.75rem 1.5rem;
+    margin-bottom: 2rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.status-item {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.status-label {
+    color: var(--text-muted);
+}
+
+.status-value {
+    color: var(--primary-green);
+    font-weight: bold;
+}
+
+.terminal-prefix {
+    color: var(--primary-green);
+    margin-right: 0.5rem;
+}
+
+.label-icon {
+    color: var(--primary-green);
+    margin-right: 0.5rem;
+}
+
+.input-wrapper {
+    position: relative;
+}
+
+.input-border-effect {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: var(--primary-green);
+    transition: width 0.3s ease;
+}
+
+.form-group input:focus + .input-border-effect {
+    width: 100%;
+}
+
+.btn-glow {
+    position: relative;
+}
+
+.btn-icon {
+    margin-left: 0.5rem;
+    transition: transform 0.3s ease;
+}
+
+.btn-glow:hover .btn-icon {
+    transform: translateX(5px);
+}
+
+.progress-dots span {
+    animation: dotPulse 1.5s infinite;
+}
+
+.progress-dots span:nth-child(2) {
+    animation-delay: 0.3s;
+}
+
+.progress-dots span:nth-child(3) {
+    animation-delay: 0.6s;
+}
+
+@keyframes dotPulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.results-badge {
+    background: var(--primary-green);
+    color: var(--darker-bg);
+    padding: 0.25rem 0.75rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.dt-icon {
+    color: var(--primary-green);
+    margin-right: 0.5rem;
+}
+
+.value-highlight {
+    color: var(--primary-green);
+    font-weight: bold;
+}
+
+.value-success {
+    color: var(--primary-green);
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.summary-item-highlight {
+    border-left-color: var(--primary-green);
+    border-left-width: 4px;
+}
+
+.card-header-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.table-stats {
+    display: flex;
+    gap: 1.5rem;
+}
+
+.stat-item {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.stat-label {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.stat-value {
+    color: var(--primary-green);
+    font-weight: bold;
+}
+
+.th-icon {
+    margin-right: 0.5rem;
+    color: var(--primary-green);
+}
+
+.method-badge {
+    background: rgba(0, 255, 65, 0.1);
+    color: var(--primary-green);
+    padding: 0.25rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.85rem;
+}
+
+.link-icon {
+    margin-left: 0.25rem;
+    font-size: 0.85rem;
+}
+
+.empty-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    opacity: 0.3;
+}
+
+.empty-suggestions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.suggestion {
+    color: var(--primary-green);
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+</style>
+
+<script>
+// Add live clock to status bar
+document.addEventListener('DOMContentLoaded', () => {
+    const clockElement = document.querySelector('[data-clock]');
+    if (clockElement) {
+        function updateClock() {
+            const now = new Date();
+            const time = now.toLocaleTimeString('en-US', { hour12: false });
+            clockElement.textContent = time;
+        }
+        updateClock();
+        setInterval(updateClock, 1000);
+    }
+});
+</script>
 {% endblock %}
