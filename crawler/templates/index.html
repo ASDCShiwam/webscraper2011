@@ -85,7 +85,7 @@
     <section class="card card-status-panel">
         <h2>Current Crawling Status</h2>
         <div class="status-chip-row">
-            <span class="status-chip status-{{ current_status.state|default:"Idle"|lower }}">{{ current_status.state|default:"Idle" }}</span>
+            <span class="status-chip status-{{ current_status.state|default:"Idle"|lower }}" data-current-state>{{ current_status.state|default:"Idle" }}</span>
             <span class="status-updated">Updated {{ current_status.last_updated|default:"just now" }}</span>
         </div>
 
@@ -96,17 +96,18 @@
             </div>
             <div class="status-detail">
                 <dt>Pages crawled</dt>
-                <dd class="value-highlight">{{ current_status.pages_crawled|default:0 }}</dd>
+                <dd class="value-highlight" data-pages-crawled>{{ current_status.pages_crawled|default:0 }}</dd>
             </div>
             <div class="status-detail">
                 <dt>PDFs downloaded</dt>
-                <dd class="value-highlight">{{ current_status.downloaded|default:0 }}</dd>
+                <dd class="value-highlight" data-pdfs-downloaded>{{ current_status.downloaded|default:0 }}</dd>
             </div>
             <div class="status-detail">
                 <dt>Notes</dt>
-                <dd class="muted">{{ current_status.message|default:"Waiting for the next crawl to begin." }}</dd>
+                <dd class="muted" data-status-note>{{ current_status.message|default:"Waiting for the next crawl to begin." }}</dd>
             </div>
         </dl>
+        <div class="status-log" data-status-log aria-live="polite"></div>
     </section>
 
     {% if message %}

@@ -6,7 +6,7 @@ import time
 from collections import deque
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple
+from typing import Callable, Dict, Iterable, Iterator, List, Optional, Set, Tuple
 from urllib.parse import ParseResult, urljoin, urldefrag, urlparse, quote, unquote, parse_qs
 
 import bs4
@@ -41,6 +41,27 @@ ONCLICK_PDF_PATTERN = re.compile(
 
 logger = logging.getLogger(__name__)
 
+_STATUS_SUBSCRIBERS: List[Callable[[str, Dict[str, object]], None]] = []
+
+
+def register_status_callback(callback: Callable[[str, Dict[str, object]], None]) -> None:
+    """Register a callback to receive live crawler status messages."""
+
+    _STATUS_SUBSCRIBERS.append(callback)
+
+
+def _emit_status(message: str, *, context: Optional[Dict[str, object]] = None) -> None:
+    """Print a status message and forward it to registered subscribers."""
+
+    print(message)
+
+    extra = context or {}
+    for callback in _STATUS_SUBSCRIBERS:
+        try:
+            callback(message, extra)
+        except Exception:
+            logger.exception("Status callback failed")
+
 
 def crawl_and_download(
     start_url: str,
@@ -51,6 +72,7 @@ def crawl_and_download(
     allowed_hosts: Optional[Iterable[str]] = None,
     max_pages: Optional[int] = None,
     max_pdfs: Optional[int] = None,
+    progress_callback: Optional[Callable[[str, Dict[str, object]], None]] = None,
 ) -> Tuple[List[Dict[str, str]], Dict[str, str]]:
     """
     Crawl website and download PDFs.
@@ -79,12 +101,15 @@ def crawl_and_download(
                 allowed.add(lowered.split(":", 1)[0])
 
     pages_crawled = 0
-    
-    print(f"\n{'='*80}")
-    print(f"🚀 PDF Crawler Started")
-    print(f"   Target: {start_url}")
-    print(f"   Output: {download_folder}")
-    print(f"{'='*80}\n")
+
+    if progress_callback:
+        register_status_callback(progress_callback)
+
+    _emit_status(f"\n{'='*80}")
+    _emit_status("🚀 PDF Crawler Started", context={"state": "Running", "website": start_url})
+    _emit_status(f"   Target: {start_url}")
+    _emit_status(f"   Output: {download_folder}")
+    _emit_status(f"{'='*80}\n")
     
     max_pdf_limit_hit = False
 
@@ -100,7 +125,10 @@ def crawl_and_download(
         visited.add(current_url)
         pages_crawled += 1
         
-        print(f"\n[Page {pages_crawled}] 🔍 Crawling: {current_url}")
+        _emit_status(
+            f"\n[Page {pages_crawled}] 🔍 Crawling: {current_url}",
+            context={"pages_crawled": pages_crawled, "state": "Running", "website": start_url},
+        )
 
         response = _request_with_retries(current_url, retries=retries, delay=delay)
         if response is None:
@@ -125,7 +153,18 @@ def crawl_and_download(
         regular_pdfs = _extract_regular_pdf_links(soup, current_url)
         
         total_found = len(onclick_pdfs) + len(watermark_hrefs) + len(regular_pdfs)
-        print(f"   📄 Found {total_found} PDFs ({len(onclick_pdfs)} onclick, {len(watermark_hrefs)} watermark, {len(regular_pdfs)} direct)")
+        _emit_status(
+            (
+                "   📄 Found "
+                f"{total_found} PDFs ({len(onclick_pdfs)} onclick, {len(watermark_hrefs)} watermark, {len(regular_pdfs)} direct)"
+            ),
+            context={
+                "pages_crawled": pages_crawled,
+                "downloaded": len(downloaded),
+                "state": "Running",
+                "website": start_url,
+            },
+        )
         
         # Download onclick PDFs (Method 1)
         for pdf_path in onclick_pdfs:
@@ -232,14 +271,30 @@ def crawl_and_download(
                     links_found += 1
 
             if links_found > 0:
-                print(f"   🔗 Queued {links_found} new links (Total in queue: {len(queue)})")
+                _emit_status(
+                    f"   🔗 Queued {links_found} new links (Total in queue: {len(queue)})",
+                    context={
+                        "pages_crawled": pages_crawled,
+                        "downloaded": len(downloaded),
+                        "state": "Running",
+                        "website": start_url,
+                    },
+                )
 
-    print(f"\n{'='*80}")
-    print(f"✅ Crawling Complete!")
-    print(f"   Pages crawled: {pages_crawled}")
-    print(f"   PDFs downloaded: {len(downloaded)}")
-    print(f"   Saved to: {download_folder}")
-    print(f"{'='*80}\n")
+    _emit_status(f"\n{'='*80}")
+    _emit_status(
+        "✅ Crawling Complete!",
+        context={
+            "state": "Completed",
+            "pages_crawled": pages_crawled,
+            "downloaded": len(downloaded),
+            "website": start_url,
+        },
+    )
+    _emit_status(f"   Pages crawled: {pages_crawled}")
+    _emit_status(f"   PDFs downloaded: {len(downloaded)}")
+    _emit_status(f"   Saved to: {download_folder}")
+    _emit_status(f"{'='*80}\n")
 
     finished_at = datetime.utcnow()
 
@@ -248,6 +303,9 @@ def crawl_and_download(
         "started_at": started_at.isoformat() + "Z",
         "finished_at": finished_at.isoformat() + "Z",
     }
+
+    if progress_callback and progress_callback in _STATUS_SUBSCRIBERS:
+        _STATUS_SUBSCRIBERS.remove(progress_callback)
 
     return downloaded, metadata
 
@@ -362,23 +420,26 @@ def download_onclick_watermark(pdf_path: str, folder: Path, base_url: str) -> Op
     parsed_base = urlparse(base_url)
     watermark_url = f"{parsed_base.scheme}://{parsed_base.netloc}/watermark/download.php?show={encoded_name}"
     
-    print(f"   💧 Onclick: {pdf_name}")
-    print(f"      URL: {watermark_url}")
+    _emit_status(
+        f"   💧 Onclick: {pdf_name}",
+        context={"state": "Running"},
+    )
+    _emit_status(f"      URL: {watermark_url}")
     
     response = _get_with_ssl_fallback(watermark_url, timeout=60, stream=False, referer=base_url)
     if not response or response.status_code != 200:
-        print(f"      ✗ Failed (Status: {response.status_code if response else 'No response'})")
+        _emit_status(f"      ✗ Failed (Status: {response.status_code if response else 'No response'})")
         return None
     
     pdf_content = _extract_pdf_from_response(response.content)
     if not pdf_content or not _is_valid_pdf(pdf_content):
-        print(f"      ✗ Invalid PDF")
+        _emit_status(f"      ✗ Invalid PDF")
         return None
     
     with open(target_path, "wb") as f:
         f.write(pdf_content)
     
-    print(f"      ✅ Downloaded ({len(pdf_content)/1024:.1f} KB)")
+    _emit_status(f"      ✅ Downloaded ({len(pdf_content)/1024:.1f} KB)")
     
     return {
         "url": pdf_path,
@@ -409,39 +470,42 @@ def download_watermark_href(watermark_url: str, folder: Path, referer: str) -> O
             "downloaded_at": datetime.utcfromtimestamp(target_path.stat().st_mtime).isoformat() + "Z",
         }
     
-    print(f"   💧 Watermark: {pdf_name}")
-    print(f"      URL: {watermark_url}")
+    _emit_status(
+        f"   💧 Watermark: {pdf_name}",
+        context={"state": "Running"},
+    )
+    _emit_status(f"      URL: {watermark_url}")
     
     # Make request
     response = _get_with_ssl_fallback(watermark_url, timeout=60, stream=False, referer=referer)
     
     if not response:
-        print(f"      ✗ No response")
+        _emit_status(f"      ✗ No response")
         return None
-    
+
     if response.status_code != 200:
-        print(f"      ✗ Status {response.status_code}")
+        _emit_status(f"      ✗ Status {response.status_code}")
         return None
     
     # Check if we got HTML error instead of PDF
     content_type = response.headers.get('Content-Type', '').lower()
     if 'text/html' in content_type and 'application/pdf' not in content_type:
-        print(f"      ⚠️  Got HTML instead of PDF")
+        _emit_status(f"      ⚠️  Got HTML instead of PDF")
         # Try to see if it's a redirect or error page
         if b'<html' in response.content[:200].lower():
-            print(f"      Response starts with: {response.content[:100]}")
+            _emit_status(f"      Response starts with: {response.content[:100]}")
             return None
     
     # Extract PDF content
     pdf_content = _extract_pdf_from_response(response.content)
     
     if not pdf_content:
-        print(f"      ✗ No PDF found in response ({len(response.content)} bytes)")
-        print(f"      First 200 bytes: {response.content[:200]}")
+        _emit_status(f"      ✗ No PDF found in response ({len(response.content)} bytes)")
+        _emit_status(f"      First 200 bytes: {response.content[:200]}")
         return None
-    
+
     if not _is_valid_pdf(pdf_content):
-        print(f"      ✗ Invalid PDF")
+        _emit_status(f"      ✗ Invalid PDF")
         return None
     
     # Check for better filename in Content-Disposition header
@@ -458,7 +522,7 @@ def download_watermark_href(watermark_url: str, folder: Path, referer: str) -> O
     with open(target_path, "wb") as f:
         f.write(pdf_content)
     
-    print(f"      ✅ Downloaded ({len(pdf_content)/1024:.1f} KB)")
+    _emit_status(f"      ✅ Downloaded ({len(pdf_content)/1024:.1f} KB)")
     
     return {
         "url": watermark_url,
@@ -485,22 +549,25 @@ def download_direct_pdf(pdf_url: str, folder: Path, referer: str) -> Optional[Di
             "downloaded_at": datetime.utcfromtimestamp(target_path.stat().st_mtime).isoformat() + "Z",
         }
     
-    print(f"   📄 Direct: {pdf_name}")
+    _emit_status(
+        f"   📄 Direct: {pdf_name}",
+        context={"state": "Running"},
+    )
     
     response = _get_with_ssl_fallback(pdf_url, timeout=30, stream=False, referer=referer)
     if not response or response.status_code != 200:
-        print(f"      ✗ Failed")
+        _emit_status(f"      ✗ Failed")
         return None
     
     pdf_content = _extract_pdf_from_response(response.content)
     if not pdf_content or not _is_valid_pdf(pdf_content):
-        print(f"      ✗ Invalid")
+        _emit_status(f"      ✗ Invalid")
         return None
     
     with open(target_path, "wb") as f:
         f.write(pdf_content)
     
-    print(f"      ✅ Downloaded ({len(pdf_content)/1024:.1f} KB)")
+    _emit_status(f"      ✅ Downloaded ({len(pdf_content)/1024:.1f} KB)")
     
     return {
         "url": pdf_url,
