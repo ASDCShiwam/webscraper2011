@@ -17,9 +17,26 @@ from .models import CrawlRun, DownloadedDocument
 
 logger = logging.getLogger(__name__)
 
+def _build_status(state: str, website: Optional[str] = None, **extra: object) -> dict:
+    """Create a normalized status payload for the UI."""
+    return {
+        "state": state,
+        "website": website,
+        "pages_crawled": _safe_int(extra.get("pages_crawled")),
+        "downloaded": _safe_int(extra.get("downloaded")),
+        "message": extra.get("message") or "",
+        "last_updated": timezone.now().isoformat(),
+    }
+
+
 def _initial_context() -> dict:
     """Initialize the context for rendering."""
-    return {"message": None, "documents": [], "error": None}
+    return {
+        "message": None,
+        "documents": [],
+        "error": None,
+        "current_status": _build_status("Idle", message="Waiting to start a crawl."),
+    }
 
 def _store_context(request: HttpRequest, context: dict) -> dict:
     """Persist the latest crawl context in the user's session."""
@@ -154,6 +171,9 @@ def index(request):
     """Handle the index page request."""
     context = _initial_context()
     context.update(request.session.get("LAST_CONTEXT", {}))
+    context.setdefault(
+        "current_status", _build_status("Idle", message="Waiting to start a crawl.")
+    )
     return render(request, 'index.html', context)
 
 def start_scraping(request):
@@ -176,7 +196,16 @@ def start_scraping(request):
             max_pages = parse_limit(request.POST.get('max_pages', ''), "Maximum pages")
             max_pdfs = parse_limit(request.POST.get('max_pdfs', ''), "Maximum PDFs")
         except ValueError as exc:
-            context = _store_context(request, {**_initial_context(), "error": str(exc)})
+            context = _store_context(
+                request,
+                {
+                    **_initial_context(),
+                    "error": str(exc),
+                    "current_status": _build_status(
+                        "Error", website_url or None, message=str(exc)
+                    ),
+                },
+            )
             return render(request, 'index.html', context, status=400)
 
         # Define download directory and start crawling
@@ -210,6 +239,13 @@ def start_scraping(request):
 
         # Create a message with the crawl summary
         pages_crawled = _safe_int(crawl_metadata.get("pages_crawled"), 0)
+        current_status = _build_status(
+            "Completed",
+            start_url,
+            pages_crawled=pages_crawled,
+            downloaded=len(downloaded_documents),
+            message="Crawl finished successfully.",
+        )
 
         message = {
             "website_url": start_url,
@@ -260,6 +296,7 @@ def start_scraping(request):
                 "message": message,
                 "documents": documents,
                 "error": None,
+                "current_status": current_status,
             }
         )
 
