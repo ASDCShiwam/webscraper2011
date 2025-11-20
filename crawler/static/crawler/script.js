@@ -112,7 +112,7 @@ function initMatrixRain() {
     const drops = Array(Math.floor(columns)).fill(1);
 
     function drawMatrix() {
-        ctx.fillStyle = 'rgba(10, 14, 39, 0.05)';
+        ctx.fillStyle = 'rgba(10, 14, 39, 0.06)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         ctx.fillStyle = '#00ff6a';
