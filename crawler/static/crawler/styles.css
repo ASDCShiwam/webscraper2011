@@ -154,6 +154,70 @@ body::after {
     box-shadow: 0 0 12px rgba(0, 255, 65, 0.5);
 }
 
+@keyframes flicker {
+    0%, 20%, 22%, 63%, 64%, 70%, 100% { opacity: 0.6; }
+    21%, 23%, 65% { opacity: 0.5; }
+    66% { opacity: 0.75; }
+}
+
+/* Floating code columns layered above the canvas */
+.code-stream {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    mix-blend-mode: screen;
+    opacity: 0.4;
+}
+
+.code-column {
+    position: absolute;
+    top: -120%;
+    color: rgba(0, 255, 65, 0.7);
+    font-size: 0.85rem;
+    letter-spacing: 0.2rem;
+    text-shadow: 0 0 8px rgba(0, 255, 65, 0.6), 0 0 20px rgba(0, 255, 65, 0.35);
+    white-space: nowrap;
+    animation: codeFall linear infinite;
+}
+
+.code-column:nth-child(even) {
+    color: rgba(128, 255, 211, 0.8);
+}
+
+@keyframes codeFall {
+    0% { transform: translateY(-120%); opacity: 0; }
+    8% { opacity: 1; }
+    100% { transform: translateY(120%); opacity: 0; }
+}
+
+/* HUD-inspired status bar */
+.status-bar {
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 0 18px rgba(0, 255, 65, 0.18), 0 0 40px rgba(0, 153, 255, 0.12);
+    backdrop-filter: blur(6px);
+}
+
+.status-bar.status-glow {
+    box-shadow: 0 0 24px rgba(0, 255, 65, 0.3), 0 0 70px rgba(0, 153, 255, 0.25);
+}
+
+.status-value {
+    text-shadow: 0 0 10px rgba(0, 255, 65, 0.6);
+    letter-spacing: 1px;
+}
+
+.status-signal {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: linear-gradient(90deg, rgba(0, 255, 65, 0.2), rgba(0, 153, 255, 0.4));
+    transition: width 0.6s ease, opacity 0.6s ease;
+    box-shadow: 0 0 12px rgba(0, 255, 65, 0.5);
+}
+
 /* Glitch effect for header */
 @keyframes glitch {
     0% { transform: translate(0); }
