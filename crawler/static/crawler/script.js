@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initParticles();
     initTerminalEffect();
     initStatusPulse();
+    initLiveStatus();
 });
 
 // Form submission with loading state
@@ -331,6 +332,69 @@ function initStatusPulse() {
 
     tick();
     setInterval(tick, 3200);
+}
+
+// Live status polling for the crawl panel
+function initLiveStatus() {
+    const logContainer = document.querySelector('[data-status-log]');
+    const stateChip = document.querySelector('[data-current-state]');
+    const pagesCrawled = document.querySelector('[data-pages-crawled]');
+    const pdfsDownloaded = document.querySelector('[data-pdfs-downloaded]');
+    const notes = document.querySelector('[data-status-note]');
+    const updated = document.querySelector('.status-updated');
+
+    if (!logContainer) return;
+
+    const renderMessages = (messages = []) => {
+        logContainer.innerHTML = '';
+        messages.slice(-12).forEach((entry) => {
+            const row = document.createElement('div');
+            row.className = 'status-log-row';
+            const time = entry.timestamp ? new Date(entry.timestamp).toLocaleTimeString() : '';
+            row.textContent = `${time ? '[' + time + '] ' : ''}${entry.message}`;
+            logContainer.appendChild(row);
+        });
+        logContainer.scrollTop = logContainer.scrollHeight;
+    };
+
+    const updatePanel = (status) => {
+        if (!status) return;
+        if (stateChip) {
+            stateChip.textContent = status.state || 'Idle';
+            stateChip.className = `status-chip status-${(status.state || 'idle').toLowerCase()}`;
+        }
+        if (pagesCrawled && typeof status.pages_crawled !== 'undefined') {
+            pagesCrawled.textContent = status.pages_crawled;
+        }
+        if (pdfsDownloaded && typeof status.downloaded !== 'undefined') {
+            pdfsDownloaded.textContent = status.downloaded;
+        }
+        if (notes && status.message) {
+            notes.textContent = status.message;
+        }
+        if (updated) {
+            updated.textContent = `Updated ${status.last_updated ? new Date(status.last_updated).toLocaleTimeString() : 'just now'}`;
+        }
+    };
+
+    const poll = async () => {
+        try {
+            const response = await fetch('/live_status');
+            if (!response.ok) return;
+            const data = await response.json();
+            if (Array.isArray(data.messages)) {
+                renderMessages(data.messages);
+            }
+            if (data.current_status) {
+                updatePanel(data.current_status);
+            }
+        } catch (err) {
+            console.warn('Unable to fetch live status', err);
+        }
+    };
+
+    poll();
+    setInterval(poll, 3000);
 }
 
 // Add glitch effect on logo hover
