@@ -99,37 +99,32 @@ function initTypingEffect() {
 // Matrix-style rain effect (lighter version)
 function initMatrixRain() {
     const canvas = document.createElement('canvas');
-    canvas.style.position = 'fixed';
-    canvas.style.top = '0';
-    canvas.style.left = '0';
-    canvas.style.width = '100%';
-    canvas.style.height = '100%';
-    canvas.style.pointerEvents = 'none';
-    canvas.style.zIndex = '0';
-    canvas.style.opacity = '0.22';
+    canvas.className = 'matrix-canvas';
     document.body.appendChild(canvas);
 
     const ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    const chars = '01アイウエオカキクケコサシスセソ';
-    const fontSize = 14;
+    const chars = '01アイウエオカキクケコサシスセソΔΞλΣ#//<>';
+    const fontSize = 15;
     const columns = canvas.width / fontSize;
     const drops = Array(Math.floor(columns)).fill(1);
 
     function drawMatrix() {
-        ctx.fillStyle = 'rgba(10, 14, 39, 0.08)';
+        ctx.fillStyle = 'rgba(10, 14, 39, 0.06)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        ctx.fillStyle = '#00ff41';
+        ctx.fillStyle = '#00ff6a';
+        ctx.shadowColor = 'rgba(0, 255, 65, 0.6)';
+        ctx.shadowBlur = 12;
         ctx.font = `${fontSize}px monospace`;
 
         for (let i = 0; i < drops.length; i++) {
             const text = chars[Math.floor(Math.random() * chars.length)];
             ctx.fillText(text, i * fontSize, drops[i] * fontSize);
 
-            if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+            if (drops[i] * fontSize > canvas.height && Math.random() > 0.96) {
                 drops[i] = 0;
             }
             drops[i]++;
@@ -155,21 +150,21 @@ function initCodeStream() {
     let columns = [];
 
     const makeLine = () => {
-        const length = Math.floor(12 + Math.random() * 14);
+        const length = Math.floor(14 + Math.random() * 16);
         return Array.from({ length }, () => glyphs[Math.floor(Math.random() * glyphs.length)]).join(' ');
     };
 
     const renderColumns = () => {
         stream.innerHTML = '';
         columns = [];
-        const count = Math.min(18, Math.max(8, Math.floor(window.innerWidth / 120)));
+        const count = Math.min(28, Math.max(12, Math.floor(window.innerWidth / 90)));
 
         for (let i = 0; i < count; i++) {
             const col = document.createElement('div');
             col.className = 'code-column';
             col.style.left = `${(i / count) * 100}%`;
-            col.style.animationDuration = `${8 + Math.random() * 6}s`;
-            col.style.animationDelay = `${Math.random() * 4}s`;
+            col.style.animationDuration = `${7 + Math.random() * 6}s`;
+            col.style.animationDelay = `${Math.random() * 3.5}s`;
             col.textContent = makeLine();
             stream.appendChild(col);
             columns.push(col);
@@ -177,7 +172,7 @@ function initCodeStream() {
     };
 
     renderColumns();
-    setInterval(() => columns.forEach(col => col.textContent = makeLine()), 1800);
+    setInterval(() => columns.forEach(col => col.textContent = makeLine()), 1400);
     window.addEventListener('resize', renderColumns);
 }
 
