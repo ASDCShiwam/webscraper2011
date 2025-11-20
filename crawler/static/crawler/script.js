@@ -3,9 +3,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initFormHandling();
     initTypingEffect();
     initMatrixRain();
+    initCodeStream();
     initTableAnimations();
     initParticles();
     initTerminalEffect();
+    initStatusPulse();
 });
 
 // Form submission with loading state
@@ -104,7 +106,7 @@ function initMatrixRain() {
     canvas.style.height = '100%';
     canvas.style.pointerEvents = 'none';
     canvas.style.zIndex = '0';
-    canvas.style.opacity = '0.1';
+    canvas.style.opacity = '0.22';
     document.body.appendChild(canvas);
 
     const ctx = canvas.getContext('2d');
@@ -117,7 +119,7 @@ function initMatrixRain() {
     const drops = Array(Math.floor(columns)).fill(1);
 
     function drawMatrix() {
-        ctx.fillStyle = 'rgba(10, 14, 39, 0.05)';
+        ctx.fillStyle = 'rgba(10, 14, 39, 0.08)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         ctx.fillStyle = '#00ff41';
@@ -141,6 +143,42 @@ function initMatrixRain() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
     });
+}
+
+// Floating code columns for a more visible background
+function initCodeStream() {
+    const stream = document.createElement('div');
+    stream.className = 'code-stream';
+    document.body.appendChild(stream);
+
+    const glyphs = ['0', '1', '{', '}', '/', '<', '>', '*', '#', '%', 'λ', 'Σ'];
+    let columns = [];
+
+    const makeLine = () => {
+        const length = Math.floor(12 + Math.random() * 14);
+        return Array.from({ length }, () => glyphs[Math.floor(Math.random() * glyphs.length)]).join(' ');
+    };
+
+    const renderColumns = () => {
+        stream.innerHTML = '';
+        columns = [];
+        const count = Math.min(18, Math.max(8, Math.floor(window.innerWidth / 120)));
+
+        for (let i = 0; i < count; i++) {
+            const col = document.createElement('div');
+            col.className = 'code-column';
+            col.style.left = `${(i / count) * 100}%`;
+            col.style.animationDuration = `${8 + Math.random() * 6}s`;
+            col.style.animationDelay = `${Math.random() * 4}s`;
+            col.textContent = makeLine();
+            stream.appendChild(col);
+            columns.push(col);
+        }
+    };
+
+    renderColumns();
+    setInterval(() => columns.forEach(col => col.textContent = makeLine()), 1800);
+    window.addEventListener('resize', renderColumns);
 }
 
 // Table row animations
@@ -273,6 +311,31 @@ function initTerminalEffect() {
     };
     
     showMessage();
+}
+
+// Pulse the status bar to feel more like a live console
+function initStatusPulse() {
+    const statusBar = document.querySelector('[data-status-bar]');
+    const statusValue = document.querySelector('[data-system-status]');
+    if (!statusBar || !statusValue) return;
+
+    const signal = document.createElement('div');
+    signal.className = 'status-signal';
+    statusBar.appendChild(signal);
+
+    const modes = ['ONLINE', 'LISTENING', 'ARMED'];
+    let index = 0;
+
+    const tick = () => {
+        index = (index + 1) % modes.length;
+        statusValue.textContent = modes[index];
+        statusBar.classList.toggle('status-glow');
+        signal.style.width = `${60 + Math.random() * 40}%`;
+        signal.style.opacity = `${0.4 + Math.random() * 0.4}`;
+    };
+
+    tick();
+    setInterval(tick, 3200);
 }
 
 // Add glitch effect on logo hover
