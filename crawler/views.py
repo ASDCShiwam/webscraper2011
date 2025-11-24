@@ -1,7 +1,7 @@
 import hashlib
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone as dt_timezone
 from pathlib import Path
 from urllib.parse import urlparse, urlunparse
 
@@ -140,6 +140,8 @@ def format_downloaded_documents(documents: list) -> list:
         if path.exists():
             size_kb = round(path.stat().st_size / 1024, 2)
 
+        tags = _normalize_tags(doc.get("tags"))
+
         downloaded_at = doc.get("downloaded_at")
         readable_timestamp = downloaded_at
         if downloaded_at:
@@ -149,14 +151,15 @@ def format_downloaded_documents(documents: list) -> list:
             except ValueError:
                 readable_timestamp = downloaded_at
 
-        formatted.append(
-            {
-                **doc,
-                "filename": path.name if path.name else doc.get("filename"),
-                "size_kb": size_kb,
-                "downloaded_display": readable_timestamp,
-            }
-        )
+            formatted.append(
+                {
+                    **doc,
+                    "filename": path.name if path.name else doc.get("filename"),
+                    "size_kb": size_kb,
+                    "downloaded_display": readable_timestamp,
+                    "tags": tags,
+                }
+            )
 
     return sorted(
         formatted,
@@ -173,11 +176,17 @@ def _safe_int(value: Optional[object], default: int = 0) -> int:
         return default
 
 
-from datetime import datetime, timezone
-from typing import Optional
+def _normalize_tags(raw_value: object) -> list[str]:
+    """Normalize incoming tag values into a list of strings."""
+    if isinstance(raw_value, str):
+        values = [item.strip() for item in raw_value.split(",")]
+        return [item for item in values if item]
 
-from datetime import datetime, timezone as dt_timezone
-from django.utils import timezone  # Django's module
+    if isinstance(raw_value, (list, tuple)):
+        return [str(item).strip() for item in raw_value if str(item).strip()]
+
+    return []
+
 
 def _parse_iso_timestamp(raw_value: Optional[str]) -> Optional[datetime]:
     if not raw_value:
@@ -375,6 +384,7 @@ def start_scraping(request):
                     downloaded_at=_parse_iso_timestamp(document.get("downloaded_at")) or completed_at,
                     download_method=document.get("method", ""),
                     sha256=sha256,
+                    tags=", ".join(_normalize_tags(document.get("tags"))),
                 )
 
         # Store context for session and render

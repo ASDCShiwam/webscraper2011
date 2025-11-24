@@ -34,6 +34,7 @@ class DownloadedDocument(models.Model):
     downloaded_at = models.DateTimeField(null=True, blank=True)
     download_method = models.CharField(max_length=32, blank=True)
     sha256 = models.CharField(max_length=64, blank=True)
+    tags = models.TextField(blank=True, help_text="Comma-separated informative tags from the source page")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

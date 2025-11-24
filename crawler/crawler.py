@@ -145,12 +145,14 @@ def crawl_and_download(
 
         # METHOD 1: JavaScript onclick with PDF path (dgis.army.mil)
         onclick_pdfs = _extract_onclick_pdfs(soup, current_url)
-        
+
         # METHOD 2: Direct watermark href (sigweb.army.mil)
         watermark_hrefs = _extract_watermark_hrefs(soup, current_url)
-        
+
         # METHOD 3: Regular PDF links
         regular_pdfs = _extract_regular_pdf_links(soup, current_url)
+
+        tags = _extract_informative_tags(soup)
         
         total_found = len(onclick_pdfs) + len(watermark_hrefs) + len(regular_pdfs)
         _emit_status(
@@ -176,6 +178,7 @@ def crawl_and_download(
             if pdf_info:
                 pdf_info["source_page"] = current_url
                 pdf_info["method"] = "onclick"
+                pdf_info["tags"] = tags
                 downloaded.append(pdf_info)
                 downloaded_urls.add(pdf_path)
 
@@ -193,10 +196,11 @@ def crawl_and_download(
                 continue
             
             pdf_info = download_watermark_href(watermark_url, download_folder, current_url)
-            
+
             if pdf_info:
                 pdf_info["source_page"] = current_url
                 pdf_info["method"] = "watermark_href"
+                pdf_info["tags"] = tags
                 downloaded.append(pdf_info)
                 downloaded_urls.add(watermark_url)
 
@@ -221,6 +225,7 @@ def crawl_and_download(
             if pdf_info:
                 pdf_info["source_page"] = current_url
                 pdf_info["method"] = "direct"
+                pdf_info["tags"] = tags
                 downloaded.append(pdf_info)
                 downloaded_urls.add(pdf_url)
 
@@ -383,8 +388,37 @@ def _extract_regular_pdf_links(soup: BeautifulSoup, base_url: str) -> List[str]:
             if full_url not in seen:
                 discovered.append(full_url)
                 seen.add(full_url)
-    
+
     return discovered
+
+
+def _extract_informative_tags(soup: BeautifulSoup) -> List[str]:
+    """Collect informative tags from the current page to attach to downloads."""
+    tags = []
+
+    title_text = (soup.title.string or "") if soup.title else ""
+    if title_text:
+        tags.append(title_text.strip())
+
+    for meta_name in ("keywords", "description"):
+        meta_tag = soup.find("meta", attrs={"name": meta_name})
+        if meta_tag and meta_tag.get("content"):
+            tags.extend([part.strip() for part in meta_tag["content"].split(",") if part.strip()])
+
+    for heading in soup.find_all(["h1", "h2"], limit=3):
+        heading_text = heading.get_text(" ", strip=True)
+        if heading_text:
+            tags.append(heading_text)
+
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_tags: List[str] = []
+    for tag in tags:
+        if tag not in seen:
+            unique_tags.append(tag)
+            seen.add(tag)
+
+    return unique_tags
 
 
 def download_onclick_watermark(pdf_path: str, folder: Path, base_url: str) -> Optional[Dict[str, str]]:

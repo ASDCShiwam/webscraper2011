@@ -199,6 +199,9 @@
                             <span class="th-icon">▼</span> Method
                         </th>
                         <th scope="col">
+                            <span class="th-icon">▼</span> Tags
+                        </th>
+                        <th scope="col">
                             <span class="th-icon">▼</span> Size
                         </th>
                         <th scope="col">
@@ -222,6 +225,13 @@
                         </td>
                         <td data-label="Method" class="text-capitalize">
                             <span class="method-badge">{{ document.method }}</span>
+                        </td>
+                        <td data-label="Tags">
+                            {% if document.tags %}
+                                <span class="tag-list">{{ document.tags|join:", " }}</span>
+                            {% else %}
+                                <span class="value-empty">—</span>
+                            {% endif %}
                         </td>
                         <td data-label="Size">
                             {% if document.size_kb %}
