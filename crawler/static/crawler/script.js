@@ -98,6 +98,49 @@ function initTypingEffect() {
 }
 
 // Matrix-style rain effect (lighter version)
+// function initMatrixRain() {
+//     const canvas = document.createElement('canvas');
+//     canvas.className = 'matrix-canvas';
+//     document.body.appendChild(canvas);
+
+//     const ctx = canvas.getContext('2d');
+//     canvas.width = window.innerWidth;
+//     canvas.height = window.innerHeight;
+
+//     const chars = '0101<>[]{}#%?=+*//::;';
+//     const fontSize = 16;
+//     const columns = canvas.width / fontSize;
+//     const drops = Array(Math.floor(columns)).fill(1);
+
+//     function drawMatrix() {
+//         ctx.fillStyle = 'rgba(10, 14, 39, 0.06)';
+//         ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+//         ctx.fillStyle = '#00ff6a';
+//         ctx.shadowColor = 'rgba(0, 255, 65, 0.7)';
+//         ctx.shadowBlur = 14;
+//         ctx.font = `${fontSize}px monospace`;
+
+//         for (let i = 0; i < drops.length; i++) {
+//             const text = chars[Math.floor(Math.random() * chars.length)];
+//             ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+//             if (drops[i] * fontSize > canvas.height && Math.random() > 0.94) {
+//                 drops[i] = 0;
+//             }
+//             drops[i]++;
+//         }
+//     }
+
+//     setInterval(drawMatrix, 50);
+
+//     // Resize handler
+//     window.addEventListener('resize', () => {
+//         canvas.width = window.innerWidth;
+//         canvas.height = window.innerHeight;
+//     });
+// }
+
 function initMatrixRain() {
     const canvas = document.createElement('canvas');
     canvas.className = 'matrix-canvas';
@@ -107,65 +150,161 @@ function initMatrixRain() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    const chars = '0101<>[]{}#%?=+*//::;';
-    const fontSize = 16;
+    // More diverse hacker-style characters
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$+-*/=%"\'#&_(){}[]|<>^~:;?!@'.split('');
+    const fontSize = 18; // Increased from 16
     const columns = canvas.width / fontSize;
     const drops = Array(Math.floor(columns)).fill(1);
+    
+    // Track character trails for fade effect
+    const trails = Array(Math.floor(columns)).fill(null).map(() => []);
 
     function drawMatrix() {
-        ctx.fillStyle = 'rgba(10, 14, 39, 0.06)';
+        // Darker trail fade for better contrast
+        ctx.fillStyle = 'rgba(10, 14, 39, 0.08)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        ctx.fillStyle = '#00ff6a';
-        ctx.shadowColor = 'rgba(0, 255, 65, 0.7)';
-        ctx.shadowBlur = 14;
-        ctx.font = `${fontSize}px monospace`;
+        ctx.font = `bold ${fontSize}px "Courier New", monospace`;
 
         for (let i = 0; i < drops.length; i++) {
             const text = chars[Math.floor(Math.random() * chars.length)];
-            ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+            const x = i * fontSize;
+            const y = drops[i] * fontSize;
+            
+            // Draw trailing characters with fade
+            if (trails[i].length > 0) {
+                trails[i].forEach((trail, idx) => {
+                    const alpha = 1 - (idx / 15); // Fade over 15 characters
+                    ctx.fillStyle = `rgba(0, 255, 106, ${alpha * 0.4})`;
+                    ctx.shadowBlur = 0;
+                    ctx.fillText(trail.char, trail.x, trail.y);
+                });
+            }
 
-            if (drops[i] * fontSize > canvas.height && Math.random() > 0.94) {
+            // Bright leading character with strong glow
+            ctx.fillStyle = '#00ff6a';
+            ctx.shadowColor = 'rgba(0, 255, 106, 0.9)';
+            ctx.shadowBlur = 20;
+            ctx.fillText(text, x, y);
+
+            // Add to trail
+            trails[i].unshift({ char: text, x, y });
+            if (trails[i].length > 15) {
+                trails[i].pop();
+            }
+
+            // Reset drop at bottom with some randomness
+            if (drops[i] * fontSize > canvas.height && Math.random() > 0.92) {
                 drops[i] = 0;
+                trails[i] = [];
             }
             drops[i]++;
         }
     }
 
-    setInterval(drawMatrix, 50);
+    const interval = setInterval(drawMatrix, 45);
 
     // Resize handler
     window.addEventListener('resize', () => {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+        // Recalculate columns
+        const newColumns = Math.floor(canvas.width / fontSize);
+        drops.length = newColumns;
+        trails.length = newColumns;
+        drops.fill(1);
+        trails.fill(null);
+        for (let i = 0; i < newColumns; i++) {
+            trails[i] = [];
+        }
     });
 }
 
 // Floating code columns for a more visible background
+// function initCodeStream() {
+//     const stream = document.createElement('div');
+//     stream.className = 'code-stream';
+//     document.body.appendChild(stream);
+
+//     const glyphs = ['0', '1', '{', '}', '/', '<', '>', '*', '#', '%', '=', '+'];
+//     let columns = [];
+
+//     const makeLine = () => {
+//         const length = Math.floor(18 + Math.random() * 18);
+//         return Array.from({ length }, () => glyphs[Math.floor(Math.random() * glyphs.length)]).join(' ');
+//     };
+
+//     const renderColumns = () => {
+//         stream.innerHTML = '';
+//         columns = [];
+//         const count = Math.min(32, Math.max(14, Math.floor(window.innerWidth / 85)));
+
+//         for (let i = 0; i < count; i++) {
+//             const col = document.createElement('div');
+//             col.className = 'code-column';
+//             col.style.left = `${(i / count) * 100}%`;
+//             col.style.animationDuration = `${6 + Math.random() * 7}s`;
+//             col.style.animationDelay = `${Math.random() * 4}s`;
+//             col.textContent = makeLine();
+//             stream.appendChild(col);
+//             columns.push(col);
+//         }
+//     };
+
+//     renderColumns();
+//     setInterval(() => columns.forEach(col => col.textContent = makeLine()), 1400);
+//     window.addEventListener('resize', renderColumns);
+// }
+
+
 function initCodeStream() {
     const stream = document.createElement('div');
     stream.className = 'code-stream';
     document.body.appendChild(stream);
 
-    const glyphs = ['0', '1', '{', '}', '/', '<', '>', '*', '#', '%', '=', '+'];
+    // More varied hacker-style snippets
+    const codeSnippets = [
+        'SYSTEM_ACCESS_GRANTED',
+        'FIREWALL_BYPASS',
+        'ROOT_PRIVILEGE',
+        'ENCRYPTION_KEYS',
+        'NETWORK_SCAN',
+        'PORT_22_OPEN',
+        'SSH_TUNNEL',
+        'PROXY_ACTIVE',
+        'VPN_CONNECTED',
+        'DATA_MINING',
+        '0x4A8F9C2E',
+        '192.168.1.1',
+        'KERNEL_MODE',
+        'BACKDOOR_INIT',
+        'SHELL_ACCESS'
+    ];
+    
+    const glyphs = ['0', '1', '{', '}', '/', '<', '>', '*', '#', '%', '=', '+', '[', ']', '|', '&', '$'];
     let columns = [];
 
     const makeLine = () => {
-        const length = Math.floor(18 + Math.random() * 18);
-        return Array.from({ length }, () => glyphs[Math.floor(Math.random() * glyphs.length)]).join(' ');
+        // Mix of code snippets and random glyphs
+        if (Math.random() > 0.6) {
+            return codeSnippets[Math.floor(Math.random() * codeSnippets.length)];
+        } else {
+            const length = Math.floor(12 + Math.random() * 15);
+            return Array.from({ length }, () => glyphs[Math.floor(Math.random() * glyphs.length)]).join(' ');
+        }
     };
 
     const renderColumns = () => {
         stream.innerHTML = '';
         columns = [];
-        const count = Math.min(32, Math.max(14, Math.floor(window.innerWidth / 85)));
+        const count = Math.min(28, Math.max(12, Math.floor(window.innerWidth / 95)));
 
         for (let i = 0; i < count; i++) {
             const col = document.createElement('div');
             col.className = 'code-column';
             col.style.left = `${(i / count) * 100}%`;
-            col.style.animationDuration = `${6 + Math.random() * 7}s`;
-            col.style.animationDelay = `${Math.random() * 4}s`;
+            col.style.animationDuration = `${7 + Math.random() * 8}s`;
+            col.style.animationDelay = `${Math.random() * 5}s`;
             col.textContent = makeLine();
             stream.appendChild(col);
             columns.push(col);
@@ -173,7 +312,7 @@ function initCodeStream() {
     };
 
     renderColumns();
-    setInterval(() => columns.forEach(col => col.textContent = makeLine()), 1400);
+    setInterval(() => columns.forEach(col => col.textContent = makeLine()), 1600);
     window.addEventListener('resize', renderColumns);
 }
 
