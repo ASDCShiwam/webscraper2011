@@ -6,9 +6,8 @@ from pathlib import Path
 from urllib.parse import urlparse, urlunparse
 
 from django.conf import settings
-from django.core.cache import cache
 from django.db import transaction
-from django.http import HttpResponseBadRequest, HttpRequest, JsonResponse
+from django.http import HttpResponseBadRequest, HttpRequest
 from django.shortcuts import render
 from django.utils import timezone
 from typing import Optional, Tuple  # Import Optional from typing
@@ -38,41 +37,6 @@ def _initial_context() -> dict:
         "error": None,
         "current_status": _build_status("Idle", message="Waiting to start a crawl."),
     }
-
-
-def _status_cache_key(session_key: str) -> str:
-    return f"crawler:status:{session_key}"
-
-
-def _snapshot_cache_key(session_key: str) -> str:
-    return f"crawler:current:{session_key}"
-
-
-def _reset_live_status(session_key: str) -> None:
-    cache.set(_status_cache_key(session_key), [], timeout=3600)
-    cache.set(_snapshot_cache_key(session_key), _build_status("Idle"), timeout=3600)
-
-
-def _record_live_status(session_key: str, message: str, context: Optional[dict] = None) -> None:
-    """Append a live status entry for the current session."""
-
-    if not session_key:
-        return
-
-    entry = {"message": message, "timestamp": timezone.now().isoformat()}
-    if context:
-        entry.update(context)
-
-    history = cache.get(_status_cache_key(session_key), [])
-    history.append(entry)
-    cache.set(_status_cache_key(session_key), history[-100:], timeout=3600)
-
-    if context:
-        cache.set(
-            _snapshot_cache_key(session_key),
-            {**_build_status(context.get("state", "Running"), context.get("website")), **context, "message": message},
-            timeout=3600,
-        )
 
 
 def _update_current_status(request: HttpRequest, status: dict) -> dict:
@@ -218,21 +182,11 @@ def index(request):
         "CURRENT_STATUS",
         _build_status("Idle", message="Waiting to start a crawl."),
     )
-    if request.session.session_key:
-        cached_status = cache.get(_snapshot_cache_key(request.session.session_key))
-        if cached_status:
-            context["current_status"] = cached_status
     return render(request, 'index.html', context)
 
 def start_scraping(request):
     """Handle the start scraping request."""
     if request.method == 'POST':
-        if not request.session.session_key:
-            request.session.create()
-
-        session_key = request.session.session_key
-        _reset_live_status(session_key)
-
         website_url = request.POST.get('url', '').strip()
         if not website_url:
             context = _store_context(
@@ -284,17 +238,6 @@ def start_scraping(request):
             ),
         )
 
-        _record_live_status(
-            session_key,
-            "Crawl started",
-            {
-                "state": "Running",
-                "website": start_url,
-                "pages_crawled": 0,
-                "downloaded": 0,
-            },
-        )
-
         # Allow only the same host to be crawled
         parsed_start = urlparse(start_url)
         allowed_hosts = {parsed_start.netloc}
@@ -303,9 +246,6 @@ def start_scraping(request):
 
         # Call the crawl_and_download function
         crawl_started_at = timezone.now()
-
-        def progress_callback(message: str, details: dict) -> None:
-            _record_live_status(session_key, message, details)
 
         downloaded_documents, crawl_metadata = crawl_and_download(
             start_url,
@@ -333,7 +273,6 @@ def start_scraping(request):
 
         # Refresh the live status to match the final state
         _update_current_status(request, current_status)
-        _record_live_status(session_key, "Crawl completed", current_status)
 
         message = {
             "website_url": start_url,
@@ -391,22 +330,3 @@ def start_scraping(request):
         return render(request, 'index.html', context)
 
     return HttpResponseBadRequest("Invalid request method.")
-
-
-def live_status(request: HttpRequest) -> JsonResponse:
-    """Return live crawling status messages for the current session."""
-
-    if not request.session.session_key:
-        return JsonResponse({
-            "messages": [],
-            "current_status": _build_status("Idle", message="Waiting to start a crawl."),
-        })
-
-    session_key = request.session.session_key
-    messages = cache.get(_status_cache_key(session_key), [])
-    current_status = cache.get(
-        _snapshot_cache_key(session_key),
-        request.session.get("CURRENT_STATUS", _build_status("Idle")),
-    )
-
-    return JsonResponse({"messages": messages, "current_status": current_status})
