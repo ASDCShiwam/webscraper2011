@@ -6,7 +6,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}PDF Scraper{% endblock %}</title>
+    <link rel="preload" href="{% static 'crawler/styles.css' %}" as="style">
     <link rel="stylesheet" href="{% static 'crawler/styles.css' %}">
+    <link rel="preload" href="{% static 'crawler/script.js' %}" as="script">
     <script src="{% static 'crawler/script.js' %}" defer></script>
 </head>
 
